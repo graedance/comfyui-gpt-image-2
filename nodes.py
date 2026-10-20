@@ -15,9 +15,16 @@ except ImportError as e:
     ) from e
 
 
-# Released 2026-04-21. "thinking" is a ChatGPT-tier feature, not an API model.
-# Snapshot ID is offered alongside the floating alias for reproducibility.
+# gpt-image-2 released 2026-04-21. gpt-image-2.5 released 2026-09-08 as two
+# API models: Flare (OpenAI's default, faster than gpt-image-2) and Sunburst
+# (slower, tighter control across edits). "thinking" is a ChatGPT-tier feature,
+# not an API model. Snapshot IDs are offered alongside the floating aliases for
+# reproducibility.
 MODELS = [
+    "gpt-image-2.5-flare",
+    "gpt-image-2.5-sunburst",
+    "gpt-image-2.5-flare-2026-09-08",
+    "gpt-image-2.5-sunburst-2026-09-08",
     "gpt-image-2",
     "gpt-image-2-2026-04-21",
     "gpt-image-1.5",
@@ -41,7 +48,9 @@ SIZES = [
     "3840x2160",
     "2160x3840",
 ]
-QUALITIES = ["auto", "low", "medium", "high"]
+# "xhigh" and "max" are gpt-image-2.5 only; older models reject them.
+QUALITIES = ["auto", "low", "medium", "high", "xhigh", "max"]
+DEFAULT_MODEL = "gpt-image-2.5-flare"
 FORMATS = ["png", "jpeg", "webp"]
 BACKGROUNDS = ["auto", "opaque"]
 MODERATIONS = ["auto", "low"]
@@ -49,8 +58,14 @@ MODERATIONS = ["auto", "low"]
 
 # ---------- pricing & token tables ----------
 # USD per 1M tokens. gpt-image-2 from OpenAI's 2026-04-21 pricing page.
-# gpt-image-1 retained for legacy estimation.
+# gpt-image-2.5 Flare and Sunburst bill at the same token rates as gpt-image-2
+# (OpenAI model pages, checked 2026-10-20). gpt-image-1 retained for legacy.
+_V2_RATES = {"text_in": 5.0, "image_in": 8.0, "image_cached": 2.0, "image_out": 30.0}
 PRICING = {
+    "gpt-image-2.5-flare": _V2_RATES,
+    "gpt-image-2.5-sunburst": _V2_RATES,
+    "gpt-image-2.5-flare-2026-09-08": _V2_RATES,
+    "gpt-image-2.5-sunburst-2026-09-08": _V2_RATES,
     "gpt-image-2": {
         "text_in": 5.0, "image_in": 8.0, "image_cached": 2.0, "image_out": 30.0,
     },
@@ -96,8 +111,13 @@ def _output_table(model: str) -> dict:
     return OUTPUT_TOKENS_V1 if model.startswith("gpt-image-1") else OUTPUT_TOKENS_V2
 
 
+# OpenAI has not published output-token counts for xhigh / max, so the
+# estimator bills them at the "high" table and flags the figure as a floor.
+UNPUBLISHED_QUALITIES = ("xhigh", "max")
+
+
 def _resolve(quality: str, size: str) -> tuple[str, str]:
-    q = "high" if quality == "auto" else quality
+    q = "high" if quality in ("auto",) + UNPUBLISHED_QUALITIES else quality
     s = "1024x1024" if size == "auto" else size
     return q, s
 
@@ -197,7 +217,7 @@ class GPTImage2Generate:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model": (MODELS, {"default": "gpt-image-2"}),
+                "model": (MODELS, {"default": DEFAULT_MODEL}),
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "size": (SIZES, {"default": "1024x1024"}),
                 "quality": (QUALITIES, {"default": "high"}),
@@ -260,7 +280,7 @@ class GPTImage2Edit:
     @classmethod
     def INPUT_TYPES(cls):
         required = {
-            "model": (MODELS, {"default": "gpt-image-2"}),
+            "model": (MODELS, {"default": DEFAULT_MODEL}),
             "prompt": ("STRING", {"multiline": True, "default": ""}),
             "size": (SIZES, {"default": "1024x1024"}),
             "quality": (QUALITIES, {"default": "high"}),
@@ -337,7 +357,7 @@ class GPTImage2EstimateCost:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model": (MODELS, {"default": "gpt-image-2"}),
+                "model": (MODELS, {"default": DEFAULT_MODEL}),
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "size": (SIZES, {"default": "1024x1024"}),
                 "quality": (QUALITIES, {"default": "high"}),
@@ -345,7 +365,7 @@ class GPTImage2EstimateCost:
                 "input_images": ("INT", {"default": 0, "min": 0, "max": 9,
                     "tooltip": "Number of reference images (0 for generate, 1–9 for edit)"}),
                 "cached_input": ("BOOLEAN", {"default": False,
-                    "tooltip": "Bill input images at the cached rate (gpt-image-2 only)"}),
+                    "tooltip": "Bill input images at the cached rate (gpt-image-2 and 2.5)"}),
             },
         }
 
@@ -370,6 +390,8 @@ class GPTImage2EstimateCost:
         ) / 1_000_000
 
         q, s = _resolve(quality, size)
+        if quality in UNPUBLISHED_QUALITIES:
+            q = f"{quality} (priced as high, real cost is higher)"
         in_label = "image in (cached)" if cached_input else "image in"
         summary = (
             f"{model} | {n}× {s} {q}\n"

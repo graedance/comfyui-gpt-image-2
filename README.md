@@ -1,6 +1,6 @@
 # comfyui-gpt-image-2
 
-ComfyUI custom nodes for OpenAI's [`gpt-image-2`](https://developers.openai.com/api/docs/models/gpt-image-2) (released 2026-04-21), with backwards compatibility for `gpt-image-1.5`, `gpt-image-1`, and `gpt-image-1-mini`.
+ComfyUI custom nodes for OpenAI's [`gpt-image-2`](https://developers.openai.com/api/docs/models/gpt-image-2) (released 2026-04-21) and `gpt-image-2.5` Flare and Sunburst (released 2026-09-08), with backwards compatibility for `gpt-image-1.5`, `gpt-image-1`, and `gpt-image-1-mini`.
 
 ## Nodes
 
@@ -57,7 +57,11 @@ Or paste it into the optional `api_key` input on any node — useful for one-off
 
 | Model ID | Notes |
 |---|---|
-| `gpt-image-2` | Default. Latest and recommended. |
+| `gpt-image-2.5-flare` | Default. OpenAI's recommended 2.5 model: higher quality than gpt-image-2 at about half the latency. Released 2026-09-08. |
+| `gpt-image-2.5-sunburst` | Premium 2.5 model: slower, tighter control across edits. |
+| `gpt-image-2.5-flare-2026-09-08` | Pinned Flare snapshot. |
+| `gpt-image-2.5-sunburst-2026-09-08` | Pinned Sunburst snapshot. |
+| `gpt-image-2` | Previous generation. |
 | `gpt-image-2-2026-04-21` | Pinned snapshot for reproducibility. |
 | `gpt-image-1.5` | Legacy. |
 | `gpt-image-1` | Legacy. |
@@ -70,6 +74,10 @@ Or paste it into the optional `api_key` input on any node — useful for one-off
 `auto`, `1024x1024`, `1024x1536`, `1536x1024`, `1792x1024`, `1024x1792`, `2048x1152`, `2048x2048`, `3840x2160`, `2160x3840`
 
 `gpt-image-1.x` is restricted to `1024x1024`, `1024x1536`, `1536x1024`, `auto`. Picking a 2K/4K size on a 1.x model will cause the API to reject the request.
+
+## Quality
+
+`auto`, `low`, `medium`, `high`, plus `xhigh` and `max` on the 2.5 models only. Older models reject `xhigh` and `max`.
 
 ## Cost estimator
 
@@ -91,7 +99,7 @@ gpt-image-2 | 4× 1024x1024 high
   total:                  $0.8441
 ```
 
-Pricing is hard-coded from OpenAI's published rates (text in $5/M, image in $8/M, cached $2/M, image out $30/M for `gpt-image-2`). Toggle `cached_input` to apply the cached image rate.
+Pricing is hard-coded from OpenAI's published rates (text in $5/M, image in $8/M, cached $2/M, image out $30/M for `gpt-image-2`). The 2.5 models bill at the same token rates. OpenAI has not published output-token counts for `xhigh` or `max`, so the estimator prices them as `high` and labels the figure as a floor. Toggle `cached_input` to apply the cached image rate.
 
 ## License
 
